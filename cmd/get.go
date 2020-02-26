@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/TylerBrock/saw/blade"
-	"github.com/TylerBrock/saw/config"
+	"github.com/rsteube/saw/blade"
+	"github.com/rsteube/saw/config"
+	"github.com/rsteube/carapace"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +28,7 @@ var getCommand = &cobra.Command{
 		getConfig.Group = args[0]
 		b := blade.NewBlade(&getConfig, &awsConfig, &getOutputConfig)
 		if getConfig.Prefix != "" {
-			streams := b.GetLogStreams()
+			streams := b.GetLogStreams(0)
 			if len(streams) == 0 {
 				fmt.Printf("No streams found in %s with prefix %s\n", getConfig.Group, getConfig.Prefix)
 				fmt.Printf("To view available streams: `saw streams %s`\n", getConfig.Group)
@@ -62,4 +63,22 @@ Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".`,
 	getCommand.Flags().BoolVar(&getOutputConfig.Expand, "expand", false, "indent JSON log messages")
 	getCommand.Flags().BoolVar(&getOutputConfig.Invert, "invert", false, "invert colors for light terminal themes")
 	getCommand.Flags().BoolVar(&getOutputConfig.RawString, "rawString", false, "print JSON strings without escaping")
+	SawCommand.AddCommand(getCommand)
+
+	carapace.Gen(getCommand).PositionalCompletion(
+		carapace.ActionCallback(func(args []string) carapace.Action {
+			return carapace.ActionValues(groupNames()...)
+		}),
+	)
+
+	carapace.Gen(getCommand).FlagCompletion(carapace.ActionMap{
+		"start": carapace.ActionValues("2020-01-01", "-2h", "-2m", "-2s", "-2ms", "-2us", "-2ns"),
+		"stop":  carapace.ActionValues("2020-01-01", "-2h", "-2m", "-2s", "-2ms", "-2us", "-2ns"),
+		"prefix": carapace.ActionCallback(func(args []string) carapace.Action {
+			if len(args) == 0 {
+				return carapace.ActionMessage("missing log group argument")
+			}
+			return carapace.ActionMultiParts('/', streamPrefixes(args[0])...)
+		}),
+	})
 }

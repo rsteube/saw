@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"github.com/TylerBrock/saw/config"
+	"github.com/rsteube/saw/config"
+	"github.com/rsteube/carapace"
 	"github.com/spf13/cobra"
 )
 
@@ -21,11 +22,17 @@ var SawCommand = &cobra.Command{
 var awsConfig config.AWSConfiguration
 
 func init() {
-	SawCommand.AddCommand(groupsCommand)
-	SawCommand.AddCommand(streamsCommand)
-	SawCommand.AddCommand(versionCommand)
-	SawCommand.AddCommand(watchCommand)
-	SawCommand.AddCommand(getCommand)
 	SawCommand.PersistentFlags().StringVar(&awsConfig.Region, "region", "", "override profile AWS region")
 	SawCommand.PersistentFlags().StringVar(&awsConfig.Profile, "profile", "", "override default AWS profile")
+
+	carapace.Gen(SawCommand).FlagCompletion(carapace.ActionMap{
+		"region": carapace.ActionValues(awsRegions()...),
+		"profile": carapace.ActionCallback(func(args []string) carapace.Action {
+			if profiles, err := awsProfiles(); err != nil {
+				return carapace.ActionMessage(err.Error())
+			} else {
+				return carapace.ActionValues(profiles...)
+			}
+		}),
+	})
 }
